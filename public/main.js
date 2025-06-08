@@ -5,6 +5,11 @@ class NCMConverter {
         this.fileList = document.getElementById('fileList');
         this.files = new Map();
 
+        // 新增按钮
+        this.resetBtn = document.getElementById('resetBtn');
+        this.downloadAllBtn = document.getElementById('downloadAllBtn');
+
+
         this.initializeEventListeners();
     }
 
@@ -40,12 +45,39 @@ class NCMConverter {
             this.dropZone.classList.remove('dragover');
             this.handleFiles(e.dataTransfer.files);
         });
+
+        // 清理重置
+        this.resetBtn.addEventListener('click', () => this.resetAll());
+
+        // 一键下载
+        this.downloadAllBtn.addEventListener('click', () => this.downloadAll());
+
     }
 
     handleFiles(fileList) {
         Array.from(fileList).forEach(file => {
             if (file.name.toLowerCase().endsWith('.ncm')) {
                 this.addFile(file);
+            }
+        });
+    }
+
+    resetAll() {
+        this.files.clear();
+        this.fileList.innerHTML = '';
+        this.fileInput.value = '';
+    }
+
+    downloadAll() {
+        // 下载所有已转换完成的文件
+        this.files.forEach((data, fileId) => {
+            if (data.status === 'completed' && data.blobUrl) {
+                const a = document.createElement('a');
+                a.href = data.blobUrl;
+                a.download = data.file.name.replace('.ncm', '.mp3');
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
             }
         });
     }
@@ -113,7 +145,7 @@ class NCMConverter {
 
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
-            
+
             // 更新UI显示下载按钮
             const escapedFileName = this.escapeHtml(fileData.file.name);
             fileItem.innerHTML = `
@@ -124,7 +156,9 @@ class NCMConverter {
                 <a href="${url}" download="${fileData.file.name.replace('.ncm', '.mp3')}" class="download-btn">下载</a>
             `;
 
-            this.files.set(fileId, { ...fileData, status: 'completed' });
+            // 更新文件数据
+            this.files.set(fileId, { ...fileData, status: 'completed', blobUrl: url });
+
         } catch (error) {
             console.error('转换失败:', error);
             statusEl.textContent = '转换失败';
