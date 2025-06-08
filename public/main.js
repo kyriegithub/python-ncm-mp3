@@ -200,4 +200,18 @@ class NCMConverter {
 // 初始化应用
 document.addEventListener('DOMContentLoaded', () => {
     new NCMConverter();
+    // 广告轮播
+    const ads = [
+        `<b style="color:#d35400;">🔥 热门推荐：</b> <a href="https://uncao.cn" target="_blank" style="color:#ff9800;">AI工具箱</a>`,
+        `<span style="color:#388e3c;">🎵 音乐转换更快更稳，试试我们的 <a href="https://ncm-mp3.uncao.cn" target="_blank" style="color:#388e3c;text-decoration:underline;">专业版</a></span>`,
+        `<span style="color:#1976d2;">💡 关注公众号 <b>云草AI</b> 获取更多资源</span>`
+    ];
+    let adIndex = 0;
+    const adTag = document.getElementById('adTag');
+    function showAd() {
+        adTag.innerHTML = ads[adIndex];
+        adIndex = (adIndex + 1) % ads.length;
+    }
+    showAd();
+    setInterval(showAd, 5000);
 });

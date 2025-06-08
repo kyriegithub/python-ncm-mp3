@@ -50,6 +50,16 @@
       </div>
     </div>
     <script type="module" src="main.js"></script>
+    <footer class="fixed-footer">
+      <div class="footer-ads">
+        <span class="ad-tag" id="adTag"></span>
+      </div>
+      <div class="footer-copyright">
+        <span class="footer-domain">@c2025 ncm-mp3.uncao.cn</span>
+        <span style="flex:1"></span>
+        <span class="footer-domain">ncm-mp3.uncao.cn(ncm to mp3)</span>
+      </div>
+    </footer>
   </body>
 
   <style>
@@ -68,6 +78,49 @@
     .nice-btn:hover {
       box-shadow: 0 4px 16px rgba(56, 230, 197, 0.25);
       opacity: 0.92;
+    }
+    .fixed-footer {
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      width: 100vw;
+      background: #fff;
+      box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+      z-index: 100;
+      padding: 0;
+    }
+    .footer-ads {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      padding: 10px 0 6px 0;
+      background: #fffbe6;
+      border-bottom: 1px solid #ffe58f;
+    }
+    .ad-tag {
+      background: #ffe066;
+      color: #b8860b;
+      border-radius: 16px;
+      padding: 4px 14px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 1px 4px rgba(255, 224, 102, 0.15);
+      margin: 0 2px;
+      display: inline-block;
+    }
+    .footer-copyright {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #888;
+      font-size: 14px;
+      padding: 6px 24px 8px 24px;
+      background: #fff;
+    }
+    .footer-domain {
+      font-weight: bold;
+       color: #333;
+      letter-spacing: 1px;
     }
   </style>
 </html>
