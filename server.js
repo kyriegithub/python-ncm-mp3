@@ -52,8 +52,15 @@ const feedbackLimitMap = new Map(); // IP => 时间戳
 
 // 生成验证码
 app.get('/api/captcha', (req, res) => {
-  const captcha = svgCaptcha.create({ noise: 2, color: true, size: 4 });
-  // 用IP做key，实际可用session或token
+  const captcha = svgCaptcha.create({
+    noise: 0,              // 无干扰线
+    color: false,          // 黑色字体
+    background: '#fff',    // 白底
+    size: 4,               // 字符数
+    width: 160,            // 宽
+    height: 60,            // 高
+    fontSize: 54           // 字体大
+  });
   const ip = req.ip;
   captchaStore.set(ip, captcha.text.toLowerCase());
   res.type('svg');
@@ -63,7 +70,7 @@ app.get('/api/captcha', (req, res) => {
 // 留言反馈接口
 app.post('/api/feedback', (req, res) => {
   const ip = req.ip;
-  const now = Date.now();
+  const now = new Date(Date.now() + 8 * 60 * 60 * 1000);
 
   // 检查是否在1分钟内提交过
   if (feedbackLimitMap.has(ip) && now - feedbackLimitMap.get(ip) < 60 * 1000) {
@@ -81,13 +88,12 @@ app.post('/api/feedback', (req, res) => {
   captchaStore.delete(ip);
 
   // 写入日志
-  const logLine = `[${new Date().toISOString()}] IP:${ip} Name:${name} Email:${email} Content:${content}\n`;
+  const logLine = `[${now.toISOString()}] IP:${ip} Name:${name} Email:${email} Content:${content}\n`;
   fs.appendFile(path.join(__dirname, 'feedback.log'), logLine, err => {
     if (err) {
       return res.json({ success: false, message: '服务器错误，稍后再试' });
     }
-    // 只有成功才记录限流时间
-    feedbackLimitMap.set(ip, now);
+    feedbackLimitMap.set(ip, Date.now());
     res.json({ success: true });
   });
 });
