@@ -268,4 +268,28 @@ document.addEventListener('DOMContentLoaded', () => {
             msgEl.textContent = '提交失败，请检查网络';
         }
     };
+
+    // 顶部菜单折叠
+    const menuIcon = document.getElementById('headerMenuIcon');
+    const dropdown = document.getElementById('headerDropdown');
+    menuIcon.onclick = function(e) {
+        e.stopPropagation();
+        dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
+    };
+    // 点击空白处关闭下拉
+    document.addEventListener('click', function(e) {
+        if (!menuIcon.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    // 移动端按钮事件
+    document.getElementById('feedbackBtnMobile').onclick = function() {
+        dropdown.style.display = 'none';
+        document.getElementById('feedbackModal').style.display = 'flex';
+    };
+    document.getElementById('aboutBtnMobile').onclick = function() {
+        dropdown.style.display = 'none';
+        document.getElementById('aboutModal').style.display = 'flex';
+    };
 });

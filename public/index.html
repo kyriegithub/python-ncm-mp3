@@ -63,9 +63,18 @@
     <!-- 建议放在 <body> 最前面 -->
     <div class="fixed-header">
       <div class="header-domain">ncm-mp3.uncao.cn</div>
-      <div class="header-actions">
+      <div class="header-actions" id="headerActions">
         <button class="nice-btn header-btn" id="feedbackBtn">留言反馈</button>
         <button class="nice-btn header-btn" id="aboutBtn">关于</button>
+      </div>
+      <div class="header-menu-icon" id="headerMenuIcon">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <div class="header-dropdown" id="headerDropdown">
+        <button class="nice-btn header-btn" id="feedbackBtnMobile">留言反馈</button>
+        <button class="nice-btn header-btn" id="aboutBtnMobile">关于</button>
       </div>
     </div>
 
@@ -204,6 +213,52 @@
       .header-btn {
         margin-left: 10px;
       }
+      /* 只保留大屏显示按钮，小屏只显示菜单 */
+.header-menu-icon, .header-dropdown {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .header-actions {
+    display: none !important;
+  }
+  .header-menu-icon {
+    display: flex !important;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+    margin-right: 16px;
+  }
+  .header-menu-icon span {
+    display: block;
+    width: 26px;
+    height: 3px;
+    background: #888;
+    margin: 4px 0;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+  .header-dropdown {
+    display: none;
+    position: absolute;
+    top: 54px;
+    right: 16px;
+    background: #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    border-radius: 8px;
+    padding: 10px 0;
+    z-index: 999;
+    flex-direction: column;
+    min-width: 120px;
+  }
+  .header-dropdown .header-btn {
+    margin: 0 16px 8px 16px;
+    width: calc(100% - 32px);
+  }
+}
     </style>
   </body>
 </html>
