@@ -6,12 +6,21 @@ const fs = require('fs');
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
+const rateLimit = require('express-rate-limit');
+const svgCaptcha = require('svg-captcha');
+const bodyParser = require('body-parser');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+// 用于存储验证码，生产环境建议用 redis
+const captchaStore = new Map();
+
 // 启用CORS
 app.use(cors());
+
+// 解析 json
+app.use(bodyParser.json());
 
 // 配置静态文件服务
 app.use(express.static('public'));
@@ -31,6 +40,57 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
+
+// IP限流：1分钟只能提交一次
+const feedbackLimiter = rateLimit({
+  windowMs:  60 * 1000, // 1分钟
+  max: 1,
+  message: { success: false, message: '每1分钟只能提交一次反馈' }
+});
+
+const feedbackLimitMap = new Map(); // IP => 时间戳
+
+// 生成验证码
+app.get('/api/captcha', (req, res) => {
+  const captcha = svgCaptcha.create({ noise: 2, color: true, size: 4 });
+  // 用IP做key，实际可用session或token
+  const ip = req.ip;
+  captchaStore.set(ip, captcha.text.toLowerCase());
+  res.type('svg');
+  res.send(captcha.data);
+});
+
+// 留言反馈接口
+app.post('/api/feedback', (req, res) => {
+  const ip = req.ip;
+  const now = Date.now();
+
+  // 检查是否在1分钟内提交过
+  if (feedbackLimitMap.has(ip) && now - feedbackLimitMap.get(ip) < 60 * 1000) {
+    return res.json({ success: false, message: '每分钟只能提交一次反馈' });
+  }
+
+  const { name, email, content, captcha } = req.body;
+  if (!name || !email  || !content || !captcha) {
+    return res.json({ success: false, message: '请填写所有字段' });
+  }
+  const code = captchaStore.get(ip);
+  if (!code || code !== captcha.toLowerCase()) {
+    return res.json({ success: false, message: '验证码错误或已过期' });
+  }
+  captchaStore.delete(ip);
+
+  // 写入日志
+  const logLine = `[${new Date().toISOString()}] IP:${ip} Name:${name} Email:${email} Content:${content}\n`;
+  fs.appendFile(path.join(__dirname, 'feedback.log'), logLine, err => {
+    if (err) {
+      return res.json({ success: false, message: '服务器错误，稍后再试' });
+    }
+    // 只有成功才记录限流时间
+    feedbackLimitMap.set(ip, now);
+    res.json({ success: true });
+  });
+});
 
 // 转换NCM文件为MP3
 async function convertNcmToMp3(inputPath, outputPath) {
@@ -78,4 +138,4 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
 // 启动服务器
 app.listen(port, () => {
     console.log(`服务器运行在 http://localhost:${port}`);
-}); 
+});

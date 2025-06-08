@@ -244,7 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = {
             name: form.name.value.trim(),
             email: form.email.value.trim(),
-            subject: form.subject.value.trim(),
             content: form.content.value.trim(),
             captcha: form.captcha.value.trim()
         };
