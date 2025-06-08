@@ -60,67 +60,156 @@
         <span class="footer-domain">ncm-mp3.uncao.cn(ncm to mp3)</span>
       </div>
     </footer>
-  </body>
+    <!-- 建议放在 <body> 最前面 -->
+    <div class="fixed-header">
+      <div class="header-domain">ncm-mp3.uncao.cn</div>
+      <div class="header-actions">
+        <button class="nice-btn header-btn" id="feedbackBtn">留言反馈</button>
+        <button class="nice-btn header-btn" id="aboutBtn">关于</button>
+      </div>
+    </div>
 
-  <style>
-    .nice-btn {
-      background: linear-gradient(90deg, #4f8cff 0%, #38e6c5 100%);
-      color: #fff;
-      border: none;
-      border-radius: 24px;
-      padding: 10px 28px;
-      font-size: 16px;
-      margin: 0 10px;
-      cursor: pointer;
-      transition: box-shadow 0.2s;
-      box-shadow: 0 2px 8px rgba(79, 140, 255, 0.15);
-    }
-    .nice-btn:hover {
-      box-shadow: 0 4px 16px rgba(56, 230, 197, 0.25);
-      opacity: 0.92;
-    }
-    .fixed-footer {
-      position: fixed;
-      left: 0;
-      bottom: 0;
-      width: 100vw;
-      background: #fff;
-      box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
-      z-index: 100;
-      padding: 0;
-    }
-    .footer-ads {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      padding: 10px 0 6px 0;
-      background: #fffbe6;
-      border-bottom: 1px solid #ffe58f;
-    }
-    .ad-tag {
-      background: #ffe066;
-      color: #b8860b;
-      border-radius: 16px;
-      padding: 4px 14px;
-      font-size: 14px;
-      font-weight: 500;
-      box-shadow: 0 1px 4px rgba(255, 224, 102, 0.15);
-      margin: 0 2px;
-      display: inline-block;
-    }
-    .footer-copyright {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: #888;
-      font-size: 14px;
-      padding: 6px 24px 8px 24px;
-      background: #fff;
-    }
-    .footer-domain {
-      font-weight: bold;
-       color: #333;
-      letter-spacing: 1px;
-    }
-  </style>
+    <div class="modal" id="feedbackModal" style="display:none;">
+      <div class="modal-content">
+        <span class="modal-close" id="closeFeedback">&times;</span>
+        <h3>留言反馈</h3>
+        <form id="feedbackForm">
+          <input type="text" name="name" placeholder="名字" required />
+          <input type="email" name="email" placeholder="邮箱" required />
+          <input type="text" name="subject" placeholder="主题" required />
+          <textarea name="content" placeholder="正文" required></textarea>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input
+              type="text"
+              name="captcha"
+              placeholder="验证码"
+              required
+              style="flex:1;"
+            />
+            <img
+              id="captchaImg"
+              src="/api/captcha"
+              alt="验证码"
+              style="height:32px;cursor:pointer;"
+              title="点击刷新"
+            />
+          </div>
+          <button
+            type="submit"
+            class="nice-btn"
+            style="width:100%;margin-top:12px;"
+          >
+            提交
+          </button>
+        </form>
+        <div id="feedbackMsg" style="margin-top:10px;color:#d35400;"></div>
+      </div>
+    </div>
+
+    <div class="modal" id="aboutModal" style="display:none;">
+      <div class="modal-content">
+        <span class="modal-close" id="closeAbout">&times;</span>
+        <h3>关于本站</h3>
+        <div style="text-align:center;">
+          <p>感谢支持，欢迎打赏：</p>
+          <img
+            src="your-qrcode.png"
+            alt="打赏二维码"
+            style="
+              width: 180px;
+              height: 180px;
+              border-radius: 12px;
+              border: 1px solid #eee;
+            "
+          />
+        </div>
+      </div>
+    </div>
+
+    <style>
+      .nice-btn {
+        background: linear-gradient(90deg, #4f8cff 0%, #38e6c5 100%);
+        color: #fff;
+        border: none;
+        border-radius: 24px;
+        padding: 10px 28px;
+        font-size: 16px;
+        margin: 0 10px;
+        cursor: pointer;
+        transition: box-shadow 0.2s;
+        box-shadow: 0 2px 8px rgba(79, 140, 255, 0.15);
+      }
+      .nice-btn:hover {
+        box-shadow: 0 4px 16px rgba(56, 230, 197, 0.25);
+        opacity: 0.92;
+      }
+      .fixed-footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100vw;
+        background: #fff;
+        box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+        z-index: 100;
+        padding: 0;
+      }
+      .footer-ads {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        padding: 10px 0 6px 0;
+        background: #fffbe6;
+        border-bottom: 1px solid #ffe58f;
+      }
+      .ad-tag {
+        background: #ffe066;
+        color: #b8860b;
+        border-radius: 16px;
+        padding: 4px 14px;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 1px 4px rgba(255, 224, 102, 0.15);
+        margin: 0 2px;
+        display: inline-block;
+      }
+      .footer-copyright {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: #888;
+        font-size: 14px;
+        padding: 6px 24px 8px 24px;
+        background: #fff;
+      }
+      .footer-domain {
+        font-weight: bold;
+         color: #333;
+        letter-spacing: 1px;
+      }
+      .fixed-header {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        background: #fff;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        z-index: 100;
+        padding: 0;
+      }
+      .header-domain {
+        color: #333;
+        font-size: 16px;
+        padding: 14px 24px;
+        font-weight: 500;
+      }
+      .header-actions {
+        display: flex;
+        align-items: center;
+        margin-right: 24px;
+      }
+      .header-btn {
+        margin-left: 10px;
+      }
+    </style>
+  </body>
 </html>

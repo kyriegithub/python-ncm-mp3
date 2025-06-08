@@ -214,4 +214,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     showAd();
     setInterval(showAd, 5000);
+
+    // 顶部按钮弹窗逻辑
+    const feedbackBtn = document.getElementById('feedbackBtn');
+    const aboutBtn = document.getElementById('aboutBtn');
+    const feedbackModal = document.getElementById('feedbackModal');
+    const aboutModal = document.getElementById('aboutModal');
+    const closeFeedback = document.getElementById('closeFeedback');
+    const closeAbout = document.getElementById('closeAbout');
+    const captchaImg = document.getElementById('captchaImg');
+
+    feedbackBtn.onclick = () => { feedbackModal.style.display = 'flex'; };
+    aboutBtn.onclick = () => { aboutModal.style.display = 'flex'; };
+    closeFeedback.onclick = () => { feedbackModal.style.display = 'none'; };
+    closeAbout.onclick = () => { aboutModal.style.display = 'none'; };
+    window.onclick = (e) => {
+        if (e.target === feedbackModal) feedbackModal.style.display = 'none';
+        if (e.target === aboutModal) aboutModal.style.display = 'none';
+    };
+    // 刷新验证码
+    captchaImg.onclick = () => {
+        captchaImg.src = '/api/captcha?ts=' + Date.now();
+    };
+
+    // 留言表单提交
+    document.getElementById('feedbackForm').onsubmit = async function(e) {
+        e.preventDefault();
+        const form = e.target;
+        const data = {
+            name: form.name.value.trim(),
+            email: form.email.value.trim(),
+            subject: form.subject.value.trim(),
+            content: form.content.value.trim(),
+            captcha: form.captcha.value.trim()
+        };
+        const msgEl = document.getElementById('feedbackMsg');
+        msgEl.textContent = '提交中...';
+        try {
+            const res = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+            if (result.success) {
+                msgEl.textContent = '提交成功，感谢您的反馈！';
+                form.reset();
+                captchaImg.src = '/api/captcha?ts=' + Date.now();
+            } else {
+                msgEl.textContent = result.message || '提交失败，请重试';
+                captchaImg.src = '/api/captcha?ts=' + Date.now();
+            }
+        } catch {
+            msgEl.textContent = '提交失败，请检查网络';
+        }
+    };
 });
