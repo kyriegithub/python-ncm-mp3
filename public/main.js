@@ -8,7 +8,8 @@ class NCMConverter {
         // 新增按钮
         this.resetBtn = document.getElementById('resetBtn');
         this.downloadAllBtn = document.getElementById('downloadAllBtn');
-
+        this.convertAllBtn = document.getElementById('convertAllBtn');
+                this.actionBtns = document.getElementById('actionBtns');
 
         this.initializeEventListeners();
     }
@@ -52,20 +53,31 @@ class NCMConverter {
         // 一键下载
         this.downloadAllBtn.addEventListener('click', () => this.downloadAll());
 
+        this.convertAllBtn.addEventListener('click', () => this.convertAll());
+
     }
 
+    //有文件拖入
     handleFiles(fileList) {
+        let hasNew = false;
         Array.from(fileList).forEach(file => {
             if (file.name.toLowerCase().endsWith('.ncm')) {
-                this.addFile(file);
+                 if (!this.files.has(file.name)) {
+                    this.addFile(file);
+                    hasNew = true;
+                }
             }
         });
+        if (this.files.size > 0) {
+            this.actionBtns.style.display = '';
+        }
     }
 
     resetAll() {
         this.files.clear();
         this.fileList.innerHTML = '';
         this.fileInput.value = '';
+        this.actionBtns.style.display = 'none';
     }
 
     downloadAll() {
@@ -80,6 +92,16 @@ class NCMConverter {
                 document.body.removeChild(a);
             }
         });
+    }
+
+    // 新增方法：一键全部转换
+    async convertAll() {
+        for (const [fileId, data] of this.files.entries()) {
+            if (data.status === 'pending') {
+                // eslint-disable-next-line no-await-in-loop
+                await this.convertFile(fileId);
+            }
+        }
     }
 
     addFile(file) {
@@ -146,9 +168,9 @@ class NCMConverter {
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
 
-             // 更新UI显示音频播放器和下载按钮
-        const escapedFileName = this.escapeHtml(fileData.file.name);
-        fileItem.innerHTML = `
+            // 更新UI显示音频播放器和下载按钮
+            const escapedFileName = this.escapeHtml(fileData.file.name);
+            fileItem.innerHTML = `
             <div class="file-info">
                 <div class="file-name">${escapedFileName}</div>
                 <div class="file-status">转换完成</div>
