@@ -146,15 +146,22 @@ class NCMConverter {
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
 
-            // 更新UI显示下载按钮
-            const escapedFileName = this.escapeHtml(fileData.file.name);
-            fileItem.innerHTML = `
-                <div class="file-info">
-                    <div class="file-name">${escapedFileName}</div>
-                    <div class="file-status">转换完成</div>
-                </div>
-                <a href="${url}" download="${fileData.file.name.replace('.ncm', '.mp3')}" class="download-btn">下载</a>
-            `;
+             // 更新UI显示音频播放器和下载按钮
+        const escapedFileName = this.escapeHtml(fileData.file.name);
+        fileItem.innerHTML = `
+            <div class="file-info">
+                <div class="file-name">${escapedFileName}</div>
+                <div class="file-status">转换完成</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px; margin-top: 8px;">
+                <audio controls style="width: 320px; min-width: 220px;">
+                    <source src="${url}" type="audio/mpeg">
+                    您的浏览器不支持 audio 元素。
+                </audio>
+                <a href="${url}" download="${fileData.file.name.replace('.ncm', '.mp3')}" class="download-btn nice-btn" style="margin-left:10px;">下载</a>
+            </div>
+        `;
+
 
             // 更新文件数据
             this.files.set(fileId, { ...fileData, status: 'completed', blobUrl: url });
@@ -171,4 +178,4 @@ class NCMConverter {
 // 初始化应用
 document.addEventListener('DOMContentLoaded', () => {
     new NCMConverter();
-}); 
+});
