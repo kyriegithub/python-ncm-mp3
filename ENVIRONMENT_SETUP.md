@@ -23,7 +23,7 @@
 ## 文件结构
 
 ```
-python-ncm-mp3-1/
+python-ncm-mp3/
 ├── config.js              # 环境配置文件
 ├── server.js              # 主服务器文件
 ├── test_environment.js    # 环境检测测试脚本

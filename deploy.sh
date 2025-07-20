@@ -13,11 +13,11 @@ echo "当前目录: $(pwd)"
 # 进入项目目录
 if [ ! -f "server.js" ]; then
     echo "未找到server.js，尝试进入项目目录..."
-    if [ -d "/home/project/python-ncm-mp3-1" ]; then
-        cd /home/project/python-ncm-mp3-1
+    if [ -d "/home/project/python-ncm-mp3" ]; then
+        cd /home/project/python-ncm-mp3
         echo "已进入项目目录: $(pwd)"
     else
-        echo "错误: 找不到项目目录 /home/project/python-ncm-mp3-1"
+        echo "错误: 找不到项目目录 /home/project/python-ncm-mp3"
         exit 1
     fi
 fi
@@ -30,7 +30,7 @@ if [ ! -d "/home/project/venv" ]; then
     python3 -m venv venv
     source venv/bin/activate
     pip install ncmdump
-    cd /home/project/python-ncm-mp3-1
+    cd /home/project/python-ncm-mp3
     echo "虚拟环境创建完成"
 else
     echo "虚拟环境已存在: /home/project/venv"
