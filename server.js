@@ -10,6 +10,8 @@ const rateLimit = require('express-rate-limit');
 const svgCaptcha = require('svg-captcha');
 const bodyParser = require('body-parser');
 const config = require('./config');
+const OSS = require('ali-oss');
+require('dotenv').config();
 
 const app = express();
 const appConfig = config.getConfig();
@@ -17,6 +19,26 @@ const port = appConfig.port;
 
 // 用于存储验证码，生产环境建议用 redis
 const captchaStore = new Map();
+
+// OSS 配置
+const ossClient = new OSS({
+    region: process.env.OSS_REGION,
+    accessKeyId: process.env.OSS_ACCESS_KEY_ID,
+    accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
+    bucket: process.env.OSS_BUCKET
+});
+const ossBaseUrl = process.env.OSS_BASE_URL || '';
+
+// 上传文件到OSS
+async function uploadToOSS(localFilePath, ossFileName) {
+    try {
+        const result = await ossClient.put(ossFileName, localFilePath);
+        return result.url || (ossBaseUrl + '/' + ossFileName);
+    } catch (err) {
+        console.error('OSS上传失败:', err);
+        throw err;
+    }
+}
 
 // 启用CORS
 app.use(cors());
@@ -446,6 +468,7 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
     const originalName = req.file.originalname.replace('.ncm', '.mp3');
     const staticFileName = `${timestamp}-${randomId}-${originalName}`;
     const staticFilePath = path.join(mp3Dir, staticFileName);
+    const ossFileName = `mp3/${staticFileName}`;
 
     try {
         const success = await convertNcmToMp3(inputPath, tempOutputPath);
@@ -455,12 +478,23 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
             fs.copyFileSync(tempOutputPath, staticFilePath);
             console.log(`文件已复制到静态目录: ${staticFilePath}`);
             
+            // 上传到OSS
+            let ossUrl = null;
+            try {
+                ossUrl = await uploadToOSS(staticFilePath, ossFileName);
+                console.log('OSS上传成功:', ossUrl);
+                // 可选：上传成功后删除本地静态文件
+                fs.unlinkSync(staticFilePath);
+            } catch (ossErr) {
+                console.error('OSS上传失败:', ossErr);
+            }
+
             // 清理临时文件
             fs.unlinkSync(inputPath);
             fs.unlinkSync(tempOutputPath);
             
             // 返回文件URL
-            const fileUrl = `/static/mp3/${staticFileName}`;
+            const fileUrl = ossUrl || `/static/mp3/${staticFileName}`;
             console.log(`返回文件URL: ${fileUrl}`);
             
             res.json({
