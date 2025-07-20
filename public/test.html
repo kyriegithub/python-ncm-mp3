@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NCM转换器 - 测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        audio {
+            width: 100%;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>NCM转换器 - 静态文件测试</h1>
+        
+        <div class="test-section">
+            <h3>文件转换测试</h3>
+            <input type="file" id="testFile" accept=".ncm">
+            <button onclick="testConversion()">测试转换</button>
+            <div id="conversionResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>静态文件访问测试</h3>
+            <button onclick="testStaticAccess()">测试静态文件访问</button>
+            <div id="staticTestResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>音频播放测试</h3>
+            <div id="audioTest"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = isError ? 'result error' : 'result success';
+            element.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+        }
+
+        async function testConversion() {
+            const resultDiv = document.getElementById('conversionResult');
+            resultDiv.innerHTML = '';
+            
+            const fileInput = document.getElementById('testFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                log('conversionResult', '请先选择一个NCM文件', true);
+                return;
+            }
+            
+            log('conversionResult', `开始转换文件: ${file.name} (${file.size} bytes)`);
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const response = await fetch('/api/convert', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                log('conversionResult', `服务器响应: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log('conversionResult', `转换失败: ${errorText}`, true);
+                    return;
+                }
+                
+                const result = await response.json();
+                log('conversionResult', `转换成功: ${JSON.stringify(result, null, 2)}`);
+                
+                // 测试音频播放
+                if (result.fileUrl) {
+                    const audioTest = document.getElementById('audioTest');
+                    audioTest.innerHTML = `
+                        <h4>音频播放测试:</h4>
+                        <audio controls>
+                            <source src="${result.fileUrl}" type="audio/mpeg">
+                            您的浏览器不支持 audio 元素。
+                        </audio>
+                        <p>文件URL: ${result.fileUrl}</p>
+                        <a href="${result.fileUrl}" download="${result.filename}" class="download-btn">下载文件</a>
+                    `;
+                }
+                
+            } catch (error) {
+                log('conversionResult', `转换测试失败: ${error.message}`, true);
+            }
+        }
+
+        async function testStaticAccess() {
+            const resultDiv = document.getElementById('staticTestResult');
+            resultDiv.innerHTML = '';
+            
+            try {
+                // 测试静态目录访问
+                const response = await fetch('/static/mp3/');
+                log('staticTestResult', `静态目录访问: ${response.status} ${response.statusText}`);
+                
+                if (response.ok) {
+                    log('staticTestResult', '✅ 静态目录可以正常访问');
+                } else {
+                    log('staticTestResult', '❌ 静态目录访问失败', true);
+                }
+                
+                // 测试一个不存在的文件
+                const testResponse = await fetch('/static/mp3/test.mp3');
+                log('staticTestResult', `测试文件访问: ${testResponse.status} ${testResponse.statusText}`);
+                
+                if (testResponse.status === 404) {
+                    log('staticTestResult', '✅ 404错误处理正常');
+                }
+                
+            } catch (error) {
+                log('staticTestResult', `静态访问测试失败: ${error.message}`, true);
+            }
+        }
+    </script>
+</body>
+</html> 

@@ -83,10 +83,10 @@ class NCMConverter {
     downloadAll() {
         // 下载所有已转换完成的文件
         this.files.forEach((data, fileId) => {
-            if (data.status === 'completed' && data.blobUrl) {
+            if (data.status === 'completed' && data.fileUrl) {
                 const a = document.createElement('a');
-                a.href = data.blobUrl;
-                a.download = data.file.name.replace('.ncm', '.mp3');
+                a.href = data.fileUrl;
+                a.download = data.filename || data.file.name.replace('.ncm', '.mp3');
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -163,10 +163,20 @@ class NCMConverter {
                 body: formData
             });
 
-            if (!response.ok) throw new Error('转换失败');
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`转换失败: ${response.status} ${response.statusText}`);
+            }
 
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || '转换失败');
+            }
+
+            // 使用静态文件URL
+            const fileUrl = result.fileUrl;
+            console.log('转换完成，文件URL:', fileUrl);
 
             // 更新UI显示音频播放器和下载按钮
             const escapedFileName = this.escapeHtml(fileData.file.name);
@@ -176,21 +186,25 @@ class NCMConverter {
                 <div class="file-status">转换完成</div>
             </div>
             <div style="display: flex; align-items: center; gap: 16px; margin-top: 8px;">
-                <audio controls style="width: 320px; min-width: 220px;">
-                    <source src="${url}" type="audio/mpeg">
+                <audio controls style="width: 320px; min-width: 220px;" preload="metadata">
+                    <source src="${fileUrl}" type="audio/mpeg">
                     您的浏览器不支持 audio 元素。
                 </audio>
-                <a href="${url}" download="${fileData.file.name.replace('.ncm', '.mp3')}" class="download-btn nice-btn" style="margin-left:10px;">下载</a>
+                <a href="${fileUrl}" download="${result.filename}" class="download-btn nice-btn" style="margin-left:10px;">下载</a>
             </div>
         `;
 
-
             // 更新文件数据
-            this.files.set(fileId, { ...fileData, status: 'completed', blobUrl: url });
+            this.files.set(fileId, { 
+                ...fileData, 
+                status: 'completed', 
+                fileUrl: fileUrl,
+                filename: result.filename
+            });
 
         } catch (error) {
             console.error('转换失败:', error);
-            statusEl.textContent = '转换失败';
+            statusEl.textContent = `转换失败: ${error.message}`;
             convertBtn.disabled = false;
             fileData.status = 'failed';
         }

@@ -22,8 +22,19 @@ app.use(cors());
 // 解析 json
 app.use(bodyParser.json());
 
+// 创建静态文件目录
+const staticDir = 'static';
+const mp3Dir = path.join(staticDir, 'mp3');
+if (!fs.existsSync(staticDir)) {
+    fs.mkdirSync(staticDir);
+}
+if (!fs.existsSync(mp3Dir)) {
+    fs.mkdirSync(mp3Dir);
+}
+
 // 配置静态文件服务
 app.use(express.static('public'));
+app.use('/static', express.static(staticDir));
 
 // 配置文件上传
 const storage = multer.diskStorage({
@@ -49,6 +60,31 @@ const feedbackLimiter = rateLimit({
 });
 
 const feedbackLimitMap = new Map(); // IP => 时间戳
+
+// 清理静态文件的函数
+function cleanupStaticFiles() {
+    try {
+        const files = fs.readdirSync(mp3Dir);
+        const now = Date.now();
+        const tenMinutesAgo = now - (10 * 60 * 1000); // 10分钟前
+
+        files.forEach(file => {
+            const filePath = path.join(mp3Dir, file);
+            const stats = fs.statSync(filePath);
+            
+            // 如果文件超过10分钟，删除它
+            if (stats.mtime.getTime() < tenMinutesAgo) {
+                fs.unlinkSync(filePath);
+                console.log(`已删除过期文件: ${file}`);
+            }
+        });
+    } catch (error) {
+        console.error('清理静态文件时出错:', error);
+    }
+}
+
+// 每10分钟清理一次静态文件
+setInterval(cleanupStaticFiles, 10 * 60 * 1000);
 
 // 生成验证码
 app.get('/api/captcha', (req, res) => {
@@ -117,26 +153,56 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
     }
 
     const inputPath = req.file.path;
-    const outputPath = inputPath.replace('.ncm', '.mp3');
+    const tempOutputPath = inputPath.replace('.ncm', '.mp3');
+    
+    // 生成唯一的文件名
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 15);
+    const originalName = req.file.originalname.replace('.ncm', '.mp3');
+    const staticFileName = `${timestamp}-${randomId}-${originalName}`;
+    const staticFilePath = path.join(mp3Dir, staticFileName);
 
     try {
-        const success = await convertNcmToMp3(inputPath, outputPath);
+        const success = await convertNcmToMp3(inputPath, tempOutputPath);
         
         if (success) {
-            // 发送转换后的文件
-            res.download(outputPath, path.basename(outputPath), (err) => {
-                if (err) {
-                    console.error('文件下载失败:', err);
-                }
-                // 清理临时文件
-                fs.unlinkSync(inputPath);
-                fs.unlinkSync(outputPath);
+            // 将转换后的文件移动到静态目录
+            fs.copyFileSync(tempOutputPath, staticFilePath);
+            
+            // 清理临时文件
+            fs.unlinkSync(inputPath);
+            fs.unlinkSync(tempOutputPath);
+            
+            // 返回文件URL
+            const fileUrl = `/static/mp3/${staticFileName}`;
+            res.json({
+                success: true,
+                fileUrl: fileUrl,
+                filename: originalName
             });
         } else {
+            // 清理临时文件
+            try {
+                fs.unlinkSync(inputPath);
+                if (fs.existsSync(tempOutputPath)) {
+                    fs.unlinkSync(tempOutputPath);
+                }
+            } catch (cleanupError) {
+                console.error('清理临时文件失败:', cleanupError);
+            }
             res.status(500).json({ error: '文件转换失败' });
         }
     } catch (error) {
         console.error('处理失败:', error);
+        // 清理临时文件
+        try {
+            fs.unlinkSync(inputPath);
+            if (fs.existsSync(tempOutputPath)) {
+                fs.unlinkSync(tempOutputPath);
+            }
+        } catch (cleanupError) {
+            console.error('清理临时文件失败:', cleanupError);
+        }
         res.status(500).json({ error: '服务器错误' });
     }
 });
@@ -144,4 +210,6 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
 // 启动服务器
 app.listen(port, () => {
     console.log(`服务器运行在 http://localhost:${port}`);
+    console.log(`静态文件目录: ${mp3Dir}`);
+    console.log(`静态文件访问路径: /static/mp3/`);
 });
