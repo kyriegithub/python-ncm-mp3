@@ -9,9 +9,11 @@ const execPromise = util.promisify(exec);
 const rateLimit = require('express-rate-limit');
 const svgCaptcha = require('svg-captcha');
 const bodyParser = require('body-parser');
+const config = require('./config');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const appConfig = config.getConfig();
+const port = appConfig.port;
 
 // 用于存储验证码，生产环境建议用 redis
 const captchaStore = new Map();
@@ -23,8 +25,8 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // 创建静态文件目录
-const staticDir = 'static';
-const mp3Dir = path.join(staticDir, 'mp3');
+const staticDir = appConfig.staticDir;
+const mp3Dir = appConfig.mp3Dir;
 if (!fs.existsSync(staticDir)) {
     fs.mkdirSync(staticDir);
 }
@@ -96,9 +98,9 @@ async function diagnoseEnvironment() {
     console.log(`当前工作目录: ${process.cwd()}`);
     
     // 检查Python虚拟环境
-    const projectRoot = __dirname;
-    const venvPath = path.join(projectRoot, 'venv');
-    const pythonPath = path.join(venvPath, 'bin', 'python');
+    const venvInfo = config.checkVenvExists();
+    const venvPath = venvInfo.venvPath;
+    const pythonPath = venvInfo.pythonPath;
     
     console.log(`检查虚拟环境: ${venvPath}`);
     
@@ -189,18 +191,14 @@ app.get('/api/health', (req, res) => {
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         memory: process.memoryUsage(),
-        python: {
-            venvPath: path.join(__dirname, 'venv'),
-            pythonPath: path.join(__dirname, 'venv', 'bin', 'python')
-        }
+        python: config.checkVenvExists()
     };
     
     // 检查虚拟环境是否存在
-    const venvPath = path.join(__dirname, 'venv');
-    const pythonPath = path.join(venvPath, 'bin', 'python');
+    const venvInfo = config.checkVenvExists();
     
-    health.python.venvExists = fs.existsSync(venvPath);
-    health.python.pythonExists = fs.existsSync(pythonPath);
+    health.python.venvExists = venvInfo.venvExists;
+    health.python.pythonExists = venvInfo.pythonExists;
     
     res.json(health);
 });
@@ -284,12 +282,12 @@ async function convertNcmToMp3(inputPath, outputPath) {
         const absoluteInputPath = path.resolve(inputPath);
         const absoluteOutputPath = path.resolve(outputPath);
         
-        // 检查虚拟环境 - 使用更可靠的路径解析
-        const projectRoot = __dirname; // 使用__dirname而不是process.cwd()
-        const venvPath = path.join(projectRoot, 'venv');
-        let pythonPath = path.join(venvPath, 'bin', 'python');
+        // 检查虚拟环境 - 使用配置系统
+        const venvInfo = config.checkVenvExists();
+        const venvPath = venvInfo.venvPath;
+        let pythonPath = venvInfo.pythonPath;
         
-        console.log(`项目根目录: ${projectRoot}`);
+        console.log(`当前环境: ${venvInfo.environment}`);
         console.log(`检查虚拟环境: ${venvPath}`);
         console.log(`Python路径: ${pythonPath}`);
         
@@ -377,7 +375,7 @@ except Exception as e:
 `;
         
         // 将Python脚本写入临时文件
-        const tempScriptPath = path.join(projectRoot, 'temp_convert.py');
+        const tempScriptPath = path.join(__dirname, 'temp_convert.py');
         fs.writeFileSync(tempScriptPath, pythonScript);
         
         console.log(`创建Python转换脚本: ${tempScriptPath}`);
