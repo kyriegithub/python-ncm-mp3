@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NCM转换器 - 服务器诊断</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .diagnostic-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .diagnostic-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-ok { background-color: #28a745; }
+        .status-error { background-color: #dc3545; }
+        .status-warning { background-color: #ffc107; }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .log-info { background-color: #e3f2fd; }
+        .log-error { background-color: #ffebee; }
+        .log-success { background-color: #e8f5e8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>NCM转换器 - 服务器诊断工具</h1>
+        
+        <div class="diagnostic-section">
+            <h3>1. 基础连接测试</h3>
+            <button onclick="testBasicConnection()">测试基础连接</button>
+            <div id="basicConnectionResult" class="result"></div>
+        </div>
+
+        <div class="diagnostic-section">
+            <h3>2. 文件转换测试</h3>
+            <input type="file" id="testFile" accept=".ncm">
+            <button onclick="testFileConversion()">测试文件转换</button>
+            <div id="conversionResult" class="result"></div>
+        </div>
+
+        <div class="diagnostic-section">
+            <h3>3. 静态文件访问测试</h3>
+            <button onclick="testStaticAccess()">测试静态文件访问</button>
+            <div id="staticAccessResult" class="result"></div>
+        </div>
+
+        <div class="diagnostic-section">
+            <h3>4. 目录权限测试</h3>
+            <button onclick="testDirectoryPermissions()">测试目录权限</button>
+            <div id="permissionsResult" class="result"></div>
+        </div>
+
+        <div class="diagnostic-section">
+            <h3>5. 完整诊断报告</h3>
+            <button onclick="generateFullReport()">生成完整报告</button>
+            <div id="fullReportResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = `log-entry log-${type}`;
+            const statusIndicator = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            element.innerHTML += `<div class="${className}">[${timestamp}] ${statusIndicator} ${message}</div>`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        async function testBasicConnection() {
+            const resultDiv = document.getElementById('basicConnectionResult');
+            resultDiv.innerHTML = '';
+            
+            log('basicConnectionResult', '开始基础连接测试...');
+            
+            try {
+                // 测试主页面访问
+                const mainResponse = await fetch('/');
+                log('basicConnectionResult', `主页面访问: ${mainResponse.status} ${mainResponse.statusText}`);
+                
+                // 测试API端点
+                const apiResponse = await fetch('/api/captcha');
+                log('basicConnectionResult', `API端点访问: ${apiResponse.status} ${apiResponse.statusText}`);
+                
+                if (apiResponse.ok) {
+                    log('basicConnectionResult', '✅ 基础连接正常', 'success');
+                } else {
+                    log('basicConnectionResult', '❌ API端点访问失败', 'error');
+                }
+                
+            } catch (error) {
+                log('basicConnectionResult', `连接测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testFileConversion() {
+            const resultDiv = document.getElementById('conversionResult');
+            resultDiv.innerHTML = '';
+            
+            const fileInput = document.getElementById('testFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                log('conversionResult', '请先选择一个NCM文件', 'error');
+                return;
+            }
+            
+            log('conversionResult', `开始转换测试: ${file.name} (${file.size} bytes)`);
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const startTime = Date.now();
+                const response = await fetch('/api/convert', {
+                    method: 'POST',
+                    body: formData
+                });
+                const endTime = Date.now();
+                
+                log('conversionResult', `服务器响应: ${response.status} ${response.statusText} (耗时: ${endTime - startTime}ms)`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log('conversionResult', `转换失败: ${errorText}`, 'error');
+                    return;
+                }
+                
+                const result = await response.json();
+                log('conversionResult', `转换结果: ${JSON.stringify(result, null, 2)}`);
+                
+                if (result.success) {
+                    log('conversionResult', '✅ 文件转换成功', 'success');
+                    
+                    // 测试文件访问
+                    try {
+                        const fileResponse = await fetch(result.fileUrl);
+                        log('conversionResult', `文件访问测试: ${fileResponse.status} ${fileResponse.statusText}`);
+                        
+                        if (fileResponse.ok) {
+                            const fileSize = fileResponse.headers.get('content-length');
+                            log('conversionResult', `文件大小: ${fileSize} bytes`, 'success');
+                            
+                            if (fileSize > 0) {
+                                log('conversionResult', '✅ 转换后的文件正常', 'success');
+                            } else {
+                                log('conversionResult', '⚠️ 转换后的文件为空', 'warning');
+                            }
+                        } else {
+                            log('conversionResult', '❌ 无法访问转换后的文件', 'error');
+                        }
+                    } catch (fileError) {
+                        log('conversionResult', `文件访问失败: ${fileError.message}`, 'error');
+                    }
+                } else {
+                    log('conversionResult', `转换失败: ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                log('conversionResult', `转换测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testStaticAccess() {
+            const resultDiv = document.getElementById('staticAccessResult');
+            resultDiv.innerHTML = '';
+            
+            log('staticAccessResult', '开始静态文件访问测试...');
+            
+            try {
+                // 测试静态目录
+                const staticResponse = await fetch('/static/mp3/');
+                log('staticAccessResult', `静态目录访问: ${staticResponse.status} ${staticResponse.statusText}`);
+                
+                // 测试一个不存在的文件
+                const testResponse = await fetch('/static/mp3/test.mp3');
+                log('staticAccessResult', `测试文件访问: ${testResponse.status} ${testResponse.statusText}`);
+                
+                if (testResponse.status === 404) {
+                    log('staticAccessResult', '✅ 404错误处理正常', 'success');
+                }
+                
+                // 检查静态目录是否有文件
+                try {
+                    const listResponse = await fetch('/static/mp3/');
+                    if (listResponse.ok) {
+                        const html = await listResponse.text();
+                        if (html.includes('.mp3')) {
+                            log('staticAccessResult', '✅ 静态目录中有MP3文件', 'success');
+                        } else {
+                            log('staticAccessResult', 'ℹ️ 静态目录中没有MP3文件', 'info');
+                        }
+                    }
+                } catch (listError) {
+                    log('staticAccessResult', `无法列出静态目录: ${listError.message}`, 'warning');
+                }
+                
+            } catch (error) {
+                log('staticAccessResult', `静态访问测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDirectoryPermissions() {
+            const resultDiv = document.getElementById('permissionsResult');
+            resultDiv.innerHTML = '';
+            
+            log('permissionsResult', '开始目录权限测试...');
+            
+            try {
+                // 测试上传目录
+                const uploadResponse = await fetch('/uploads/');
+                log('permissionsResult', `上传目录访问: ${uploadResponse.status} ${uploadResponse.statusText}`);
+                
+                // 测试静态目录
+                const staticResponse = await fetch('/static/');
+                log('permissionsResult', `静态目录访问: ${staticResponse.status} ${staticResponse.statusText}`);
+                
+                // 测试MP3子目录
+                const mp3Response = await fetch('/static/mp3/');
+                log('permissionsResult', `MP3目录访问: ${mp3Response.status} ${mp3Response.statusText}`);
+                
+                if (mp3Response.ok) {
+                    log('permissionsResult', '✅ 目录权限正常', 'success');
+                } else {
+                    log('permissionsResult', '❌ 目录权限有问题', 'error');
+                }
+                
+            } catch (error) {
+                log('permissionsResult', `权限测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function generateFullReport() {
+            const resultDiv = document.getElementById('fullReportResult');
+            resultDiv.innerHTML = '';
+            
+            log('fullReportResult', '开始生成完整诊断报告...');
+            
+            const report = {
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                url: window.location.href,
+                tests: {}
+            };
+            
+            // 基础连接测试
+            try {
+                const mainResponse = await fetch('/');
+                report.tests.basicConnection = {
+                    status: mainResponse.status,
+                    ok: mainResponse.ok
+                };
+                log('fullReportResult', `基础连接: ${mainResponse.ok ? '✅ 正常' : '❌ 失败'}`, mainResponse.ok ? 'success' : 'error');
+            } catch (error) {
+                report.tests.basicConnection = { error: error.message };
+                log('fullReportResult', `基础连接: ❌ ${error.message}`, 'error');
+            }
+            
+            // API测试
+            try {
+                const apiResponse = await fetch('/api/captcha');
+                report.tests.api = {
+                    status: apiResponse.status,
+                    ok: apiResponse.ok
+                };
+                log('fullReportResult', `API端点: ${apiResponse.ok ? '✅ 正常' : '❌ 失败'}`, apiResponse.ok ? 'success' : 'error');
+            } catch (error) {
+                report.tests.api = { error: error.message };
+                log('fullReportResult', `API端点: ❌ ${error.message}`, 'error');
+            }
+            
+            // 静态文件测试
+            try {
+                const staticResponse = await fetch('/static/mp3/');
+                report.tests.staticFiles = {
+                    status: staticResponse.status,
+                    ok: staticResponse.ok
+                };
+                log('fullReportResult', `静态文件: ${staticResponse.ok ? '✅ 正常' : '❌ 失败'}`, staticResponse.ok ? 'success' : 'error');
+            } catch (error) {
+                report.tests.staticFiles = { error: error.message };
+                log('fullReportResult', `静态文件: ❌ ${error.message}`, 'error');
+            }
+            
+            // 生成报告摘要
+            const passedTests = Object.values(report.tests).filter(test => test.ok).length;
+            const totalTests = Object.keys(report.tests).length;
+            
+            log('fullReportResult', `\n=== 诊断报告摘要 ===`);
+            log('fullReportResult', `测试通过: ${passedTests}/${totalTests}`);
+            log('fullReportResult', `测试时间: ${report.timestamp}`);
+            log('fullReportResult', `浏览器: ${report.userAgent.split(' ')[0]}`);
+            
+            if (passedTests === totalTests) {
+                log('fullReportResult', '🎉 所有测试通过，服务器状态良好！', 'success');
+            } else {
+                log('fullReportResult', '⚠️ 部分测试失败，请检查服务器配置', 'warning');
+            }
+            
+            // 显示详细报告
+            log('fullReportResult', `\n=== 详细报告 ===`);
+            log('fullReportResult', JSON.stringify(report, null, 2));
+        }
+    </script>
+</body>
+</html> 

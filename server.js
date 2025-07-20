@@ -86,6 +86,59 @@ function cleanupStaticFiles() {
 // 每10分钟清理一次静态文件
 setInterval(cleanupStaticFiles, 10 * 60 * 1000);
 
+// 环境诊断函数
+async function diagnoseEnvironment() {
+    console.log('=== 环境诊断开始 ===');
+    
+    // 检查操作系统
+    console.log(`操作系统: ${process.platform}`);
+    console.log(`Node.js版本: ${process.version}`);
+    console.log(`当前工作目录: ${process.cwd()}`);
+    
+    // 检查ncmdump工具
+    try {
+        const { stdout } = await execPromise('which ncmdump');
+        console.log(`ncmdump路径: ${stdout.trim()}`);
+        
+        // 测试ncmdump版本或帮助信息
+        try {
+            const { stdout: helpOutput } = await execPromise('ncmdump --help');
+            console.log('ncmdump可用，帮助信息:', helpOutput.substring(0, 200) + '...');
+        } catch (helpError) {
+            console.log('ncmdump可用，但无法获取帮助信息');
+        }
+    } catch (error) {
+        console.error('❌ ncmdump未找到，请安装ncmdump工具');
+        console.error('安装命令: sudo apt-get install ncmdump');
+    }
+    
+    // 检查目录权限
+    const dirs = ['uploads', 'static', 'static/mp3'];
+    dirs.forEach(dir => {
+        try {
+            if (fs.existsSync(dir)) {
+                const stats = fs.statSync(dir);
+                console.log(`✅ 目录 ${dir} 存在，权限: ${stats.mode.toString(8)}`);
+            } else {
+                console.log(`❌ 目录 ${dir} 不存在`);
+            }
+        } catch (error) {
+            console.error(`❌ 目录 ${dir} 访问失败:`, error.message);
+        }
+    });
+    
+    // 检查文件系统空间
+    try {
+        const { stdout } = await execPromise('df -h .');
+        console.log('磁盘空间使用情况:');
+        console.log(stdout);
+    } catch (error) {
+        console.log('无法获取磁盘空间信息');
+    }
+    
+    console.log('=== 环境诊断完成 ===\n');
+}
+
 // 生成验证码
 app.get('/api/captcha', (req, res) => {
   const captcha = svgCaptcha.create({
@@ -137,8 +190,42 @@ app.post('/api/feedback', (req, res) => {
 // 转换NCM文件为MP3
 async function convertNcmToMp3(inputPath, outputPath) {
     try {
+        console.log(`开始转换文件: ${inputPath} -> ${outputPath}`);
+        
+        // 检查输入文件是否存在
+        if (!fs.existsSync(inputPath)) {
+            throw new Error(`输入文件不存在: ${inputPath}`);
+        }
+        
+        const inputStats = fs.statSync(inputPath);
+        console.log(`输入文件大小: ${inputStats.size} bytes`);
+        
+        if (inputStats.size === 0) {
+            throw new Error('输入文件为空');
+        }
+        
         const command = `ncmdump "${inputPath}" > "${outputPath}"`;
-        await execPromise(command);
+        console.log(`执行命令: ${command}`);
+        
+        const { stdout, stderr } = await execPromise(command);
+        
+        if (stderr) {
+            console.log('ncmdump stderr:', stderr);
+        }
+        
+        // 检查输出文件
+        if (!fs.existsSync(outputPath)) {
+            throw new Error('输出文件未生成');
+        }
+        
+        const outputStats = fs.statSync(outputPath);
+        console.log(`输出文件大小: ${outputStats.size} bytes`);
+        
+        if (outputStats.size === 0) {
+            throw new Error('输出文件为空');
+        }
+        
+        console.log('文件转换成功');
         return true;
     } catch (error) {
         console.error('转换失败:', error);
@@ -151,6 +238,8 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: '没有上传文件' });
     }
+
+    console.log(`收到文件上传: ${req.file.originalname}, 大小: ${req.file.size} bytes`);
 
     const inputPath = req.file.path;
     const tempOutputPath = inputPath.replace('.ncm', '.mp3');
@@ -168,6 +257,7 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
         if (success) {
             // 将转换后的文件移动到静态目录
             fs.copyFileSync(tempOutputPath, staticFilePath);
+            console.log(`文件已复制到静态目录: ${staticFilePath}`);
             
             // 清理临时文件
             fs.unlinkSync(inputPath);
@@ -175,6 +265,8 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
             
             // 返回文件URL
             const fileUrl = `/static/mp3/${staticFileName}`;
+            console.log(`返回文件URL: ${fileUrl}`);
+            
             res.json({
                 success: true,
                 fileUrl: fileUrl,
@@ -208,8 +300,11 @@ app.post('/api/convert', upload.single('file'), async (req, res) => {
 });
 
 // 启动服务器
-app.listen(port, () => {
+app.listen(port, async () => {
     console.log(`服务器运行在 http://localhost:${port}`);
     console.log(`静态文件目录: ${mp3Dir}`);
     console.log(`静态文件访问路径: /static/mp3/`);
+    
+    // 启动时进行环境诊断
+    await diagnoseEnvironment();
 });
