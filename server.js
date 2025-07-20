@@ -95,25 +95,67 @@ async function diagnoseEnvironment() {
     console.log(`Node.js版本: ${process.version}`);
     console.log(`当前工作目录: ${process.cwd()}`);
     
-    // 检查ncmdump工具
-    try {
-        const { stdout } = await execPromise('which ncmdump');
-        console.log(`ncmdump路径: ${stdout.trim()}`);
+    // 检查Python虚拟环境
+    const venvPath = path.join(process.cwd(), 'venv');
+    const pythonPath = path.join(venvPath, 'bin', 'python');
+    
+    console.log(`检查虚拟环境: ${venvPath}`);
+    
+    if (fs.existsSync(venvPath)) {
+        console.log('✅ 虚拟环境目录存在');
         
-        // 测试ncmdump版本或帮助信息
-        try {
-            const { stdout: helpOutput } = await execPromise('ncmdump --help');
-            console.log('ncmdump可用，帮助信息:', helpOutput.substring(0, 200) + '...');
-        } catch (helpError) {
-            console.log('ncmdump可用，但无法获取帮助信息');
+        if (fs.existsSync(pythonPath)) {
+            console.log('✅ Python解释器存在');
+            
+            try {
+                // 检查Python版本
+                const { stdout: pythonVersion } = await execPromise(`${pythonPath} --version`);
+                console.log(`Python版本: ${pythonVersion.trim()}`);
+                
+                // 检查ncmdump包
+                const { stdout: pipList } = await execPromise(`${pythonPath} -m pip list | grep ncmdump`);
+                console.log(`ncmdump包: ${pipList.trim()}`);
+                
+                // 测试ncmdump导入
+                const testScript = `
+import sys
+try:
+    from ncmdump import dump
+    print("✅ ncmdump模块导入成功")
+except ImportError as e:
+    print(f"❌ ncmdump模块导入失败: {e}")
+`;
+                
+                const testScriptPath = path.join(process.cwd(), 'test_ncmdump_import.py');
+                fs.writeFileSync(testScriptPath, testScript);
+                
+                try {
+                    const { stdout: importTest } = await execPromise(`${pythonPath} ${testScriptPath}`);
+                    console.log(importTest.trim());
+                } catch (importError) {
+                    console.log('❌ ncmdump模块测试失败');
+                }
+                
+                // 清理测试文件
+                try {
+                    fs.unlinkSync(testScriptPath);
+                } catch (cleanupError) {
+                    // 忽略清理错误
+                }
+                
+            } catch (pythonError) {
+                console.log('❌ Python环境检查失败:', pythonError.message);
+            }
+        } else {
+            console.log('❌ Python解释器不存在');
         }
-    } catch (error) {
-        console.error('❌ ncmdump未找到，请安装ncmdump工具');
-        console.error('安装命令: sudo apt-get install ncmdump');
+    } else {
+        console.log('❌ 虚拟环境目录不存在');
+        console.log('请确保在项目根目录下存在venv目录');
     }
     
     // 检查目录权限
-    const dirs = ['uploads', 'static', 'static/mp3'];
+    const dirs = ['uploads', 'static', 'static/mp3', 'venv'];
     dirs.forEach(dir => {
         try {
             if (fs.existsSync(dir)) {
@@ -204,13 +246,103 @@ async function convertNcmToMp3(inputPath, outputPath) {
             throw new Error('输入文件为空');
         }
         
-        const command = `ncmdump "${inputPath}" > "${outputPath}"`;
+        // 检查文件头，确认是否为NCM文件
+        const fileBuffer = fs.readFileSync(inputPath, { start: 0, end: 8 });
+        const fileHeader = fileBuffer.toString('hex');
+        console.log(`文件头: ${fileHeader}`);
+        
+        // NCM文件通常以特定字节开头
+        if (!fileHeader.startsWith('4354')) {
+            console.warn('警告: 文件头不是标准的NCM格式');
+        }
+        
+        // 使用Python的ncmdump包进行转换
+        const absoluteInputPath = path.resolve(inputPath);
+        const absoluteOutputPath = path.resolve(outputPath);
+        
+        // 检查虚拟环境
+        const venvPath = path.join(process.cwd(), 'venv');
+        const pythonPath = path.join(venvPath, 'bin', 'python');
+        
+        console.log(`检查虚拟环境: ${venvPath}`);
+        console.log(`Python路径: ${pythonPath}`);
+        
+        // 创建Python转换脚本
+        const pythonScript = `
+import sys
+import os
+sys.path.insert(0, '${venvPath}/lib/python3.*/site-packages')
+
+try:
+    from ncmdump import dump
+    import os
+    
+    input_file = '${absoluteInputPath}'
+    output_file = '${absoluteOutputPath}'
+    
+    print(f"开始转换: {input_file} -> {output_file}")
+    
+    if not os.path.exists(input_file):
+        print(f"错误: 输入文件不存在: {input_file}")
+        sys.exit(1)
+    
+    # 使用dump函数进行转换
+    result = dump(input_file, output_file)
+    
+    if result:
+        print(f"转换成功: {output_file}")
+        if os.path.exists(output_file):
+            size = os.path.getsize(output_file)
+            print(f"输出文件大小: {size} bytes")
+            if size > 0:
+                print("转换完成")
+                sys.exit(0)
+            else:
+                print("错误: 输出文件为空")
+                sys.exit(1)
+        else:
+            print("错误: 输出文件未生成")
+            sys.exit(1)
+    else:
+        print("错误: 转换失败")
+        sys.exit(1)
+        
+except ImportError as e:
+    print(f"错误: 无法导入ncmdump模块: {e}")
+    sys.exit(1)
+except Exception as e:
+    print(f"错误: {e}")
+    sys.exit(1)
+`;
+        
+        // 将Python脚本写入临时文件
+        const tempScriptPath = path.join(process.cwd(), 'temp_convert.py');
+        fs.writeFileSync(tempScriptPath, pythonScript);
+        
+        console.log(`创建Python转换脚本: ${tempScriptPath}`);
+        
+        // 执行Python脚本
+        const command = `${pythonPath} ${tempScriptPath}`;
         console.log(`执行命令: ${command}`);
         
-        const { stdout, stderr } = await execPromise(command);
+        const { stdout, stderr } = await execPromise(command, {
+            timeout: 60000, // 60秒超时
+            maxBuffer: 1024 * 1024 // 1MB缓冲区
+        });
         
         if (stderr) {
-            console.log('ncmdump stderr:', stderr);
+            console.log('Python stderr:', stderr);
+        }
+        
+        if (stdout) {
+            console.log('Python stdout:', stdout);
+        }
+        
+        // 清理临时脚本
+        try {
+            fs.unlinkSync(tempScriptPath);
+        } catch (cleanupError) {
+            console.log('清理临时脚本失败:', cleanupError.message);
         }
         
         // 检查输出文件
